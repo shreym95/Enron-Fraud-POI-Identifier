@@ -9,17 +9,74 @@ from collections import OrderedDict
 import numpy as np
 sys.path.append("../tools/")
 from feature_format import featureFormat, targetFeatureSplit
-from tester import dump_classifier_and_data
+from tester import dump_classifier_and_data, main as my_main
 from sklearn.feature_selection import SelectKBest
 from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 import sklearn.metrics as skm
+from sklearn.naive_bayes import GaussianNB
+from sklearn import svm
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
 ########################################################################################
+def main():
+    with open("final_project_dataset.pkl", "r") as data_file:
+        data_dict = pickle.load(data_file)
+    dataExplore(data_dict)
 
+    #Step 1: Selecting Features
+    features_list = ['poi', 'salary', 'bonus', 'total_payments', 'total_stock_value', 'exercised_stock_options', 'restricted_stock', 'deferred_income'
+                     ,'long_term_incentive','shared_receipt_with_poi']
+
+    #Step 2: Removing Outliers
+    removeOutlier(data_dict, features_list)
+
+    #Step 3: Engineering New Features
+    createFeature(data_dict)
+
+    #Getting 8 best features
+    best_features = get_k_best(data_dict, features_list, 8)
+    # Updated feature list
+    features_list = best_features + ['poi_outgoing', 'poi_incoming ', 'total_wealth']
+    print "=> Choice of 10 best features: "
+    pprint.pprint(features_list)
+
+    #Step 4: Extracting features and labels according to feature list
+    my_dataset = data_dict
+    labels, features = featureExtract(my_dataset, features_list)
+
+    #Step 5: Choosing and running Untuned Algorithms
+    #clf = GaussianNB()
+    #clf = DecisionTreeClassifier()
+    #clf = AdaBoostClassifier()
+
+    # Step 6 : Tuning Above Classifiers and checking Performance
+
+    clf, params = tune_DT()
+    #clf, params = tune_ADB()
+
+    #create pipeline
+    pipeline = createPipe(clf)
+    #params['pca__n_components'] = range(3,8)
+    #print pipeline.named_steps['pca'].explained_variance_ratio_
+
+    #create GridSearch
+    pred, labels_test = gridSearchCV(pipeline, params, features, labels)
+
+    #testing scores after tuning
+    evalMetrics(pred, labels_test)
+
+    ### Task 6: Dump your classifier, dataset, and features_list so anyone can
+    ### check your results. You do not need to change anything below, but make sure
+    ### that the version of poi_id.py that you submit can be run on its own and
+    ### generates the necessary .pkl files for validating your results.
+
+    #dump_classifier_and_data(clf, my_dataset, features_list)
+    #my_main()
 
 def dataExplore(data_dict):
     print "**** Exploratory Data Analysis ****\n____________________________________\n"
@@ -111,12 +168,17 @@ def createFeature(data_dict):
         # Feature 1
         person['total_wealth'] = person['total_stock_value'] + person['total_payments']
         # Feature 2
-        total_poi_interaction = person['from_poi_to_this_person'] + person['from_this_person_to_poi']
-        total_interaction = person['to_messages'] + person['from_messages']
-        if total_poi_interaction != 0 and total_interaction != 0:
-            person['poi_interact_ratio'] = total_poi_interaction/total_interaction
+
+
+        if person['from_messages'] != 0:
+            person['poi_outgoing'] = person['from_this_person_to_poi'] / person['from_messages']
         else:
-            person['poi_interact_ratio'] = 0.0
+            person['poi_outgoing'] = 0.0
+
+        if person['to_messages'] != 0:
+            person['poi_incoming'] = person['from_poi_to_this_person'] / person['to_messages']
+        else:
+            person['poi_incoming'] = 0.0
 
 # To handle all NaN values, with desired replacement
 def handleNaN(val_to_check, new_val):
@@ -143,12 +205,12 @@ def featureExtract(my_dataset, features_list):
 # Provided to give you a starting point. Try a variety of classifiers.
 def tune_NB():
     print "------------- Using Naive Bayes -----------------\n"
-    from sklearn.naive_bayes import GaussianNB
+
     nb_clf = GaussianNB()
 
 def tune_SVC():
     print "------------- Using SVM -----------------\n"
-    from sklearn import svm
+
     svc_clf = svm.SVC()
     param_grid = {
         'pca__n_components': range(3,10),
@@ -161,14 +223,18 @@ def tune_SVC():
     return svc_clf, param_grid
 
 def tune_DT():
-    print "------------- Using Decision Tree -----------------\n"
-    from sklearn.tree import DecisionTreeClassifier
+    print "------------- Tuning Decision Tree -----------------\n"
     clf = DecisionTreeClassifier()
-    pass
+    param_grid = {
+        'clf__criterion': ['entropy', 'gini'],
+        'clf__min_samples_split': [2, 5, 10],
+        'clf__splitter': ['best', 'random']
+    }
+    return clf, param_grid
 
 def tune_ADB():
     print "------------- Using AdaBoost Ensemble -----------------\n"
-    from sklearn.ensemble import AdaBoostClassifier
+
     clf = AdaBoostClassifier()
     pass
 
@@ -177,10 +243,10 @@ def tune_ADB():
 def createPipe(clf):
     print "------------------ Creating Pipeline ---------------\n"
     skb = SelectKBest()
-    scaler = StandardScaler()
+    scaler = MinMaxScaler()
     pca = PCA()
 
-    estimators = [('kbest', skb),('scale', scaler),('pca', pca),('clf', clf)]
+    estimators = [('scale', scaler),('clf', clf)]
     pipe = Pipeline(estimators)
 
     return pipe
@@ -235,46 +301,7 @@ def get_k_best(data_dict, features_list, k):
 
 
 
-def main():
-    with open("final_project_dataset.pkl", "r") as data_file:
-        data_dict = pickle.load(data_file)
-    dataExplore(data_dict)
 
-    #Step 1: Selecting Features
-    features_list = ['poi', 'salary', 'bonus', 'total_payments', 'total_stock_value', 'exercised_stock_options', 'restricted_stock', 'deferred_income'
-                     ,'long_term_incentive', 'from_poi_to_this_person', 'from_this_person_to_poi','shared_receipt_with_poi']
-
-    removeOutlier(data_dict, features_list)
-
-    createFeature(data_dict)
-    features_list += ['poi_interact_ratio', 'total_wealth']
-
-    best_features = get_k_best(data_dict, features_list, 10)
-    pprint.pprint(best_features)
-    my_dataset = data_dict
-    labels, features = featureExtract(my_dataset, features_list)
-
-    #choose algo here
-    clf, params = tune_SVC()
-    #clf, params = tune_NB()
-    #clf, params = tune_ADB()
-    #clf, params = tune_DT()
-
-    #create pipeline
-    pipeline = createPipe(clf)
-
-    #create GridSearch
-    pred, labels_test = gridSearchCV(pipeline, params, features, labels)
-
-    #testing scores
-    evalMetrics(pred, labels_test)
-
-    ### Task 6: Dump your classifier, dataset, and features_list so anyone can
-    ### check your results. You do not need to change anything below, but make sure
-    ### that the version of poi_id.py that you submit can be run on its own and
-    ### generates the necessary .pkl files for validating your results.
-
-    dump_classifier_and_data(clf, my_dataset, features_list)
 
 
 if __name__ == '__main__':
