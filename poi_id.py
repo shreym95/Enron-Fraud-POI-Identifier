@@ -47,7 +47,7 @@ def main():
 
     # Step 4: Extracting features and labels according to feature list
     my_dataset = data_dict
-    # labels, features = featureExtract(my_dataset, features_list)
+    labels, features = featureExtract(my_dataset, features_list)
 
     # Step 5: Choosing and running Untuned Algorithms
     # clf = GaussianNB()
@@ -67,18 +67,19 @@ def main():
     # print pipeline.named_steps['pca'].explained_variance_ratio_
 
     # create GridSearch
-    clf = GridSearchCV(pipeline, params_adb)
-    # pred, labels_test = gridSearchCV(pipeline, params, features, labels)
+    #clf = GridSearchCV(pipeline, params_adb)
+    pred, labels_test, tuned_clf = gridSearchCV(pipeline, params_adb, features, labels)
 
     # testing scores after tuning
-    # evalMetrics(pred, labels_test)
+    evalMetrics(pred, labels_test)
 
     ### Task 6: Dump your classifier, dataset, and features_list so anyone can
     ### check your results. You do not need to change anything below, but make sure
     ### that the version of poi_id.py that you submit can be run on its own and
     ### generates the necessary .pkl files for validating your results.
     print "--------------- Evaluating Performance! -----------------"
-    dump_classifier_and_data(clf, my_dataset, features_list)
+    dump_classifier_and_data(tuned_clf, my_dataset, features_list)
+    print 'dumped!'
     my_main()
 
 
@@ -248,20 +249,20 @@ def tune_ADB():
     clf = AdaBoostClassifier()
     param_grid = {
         'clf__algorithm' : ['SAMME', 'SAMME.R'],
-        'clf__learning_rate': [0.5, 1, 1.5, 2],
-        'clf__n_estimators' : [100, 300, 500, 1000, 5000]
+        'clf__learning_rate': [1],
+        'clf__n_estimators' : [1000]
     }
 
     return clf, param_grid
 
 #####################################################################################
 
-def createPipe(clf):
+def createPipe(clf) :
     print "------------------ Creating Pipeline ---------------\n"
     scaler = MinMaxScaler()
     pca = PCA()
 
-    estimators = [('scale', scaler),('pca', pca),('clf', clf)]
+    estimators = [('scale', scaler), ('pca', pca), ('clf', clf)]
     pipe = Pipeline(estimators)
 
     print "=> Pipeline Created!"
@@ -269,7 +270,7 @@ def createPipe(clf):
 
 #######################################################################################
 
-def gridSearchCV(pipeline, parameters, features, labels):
+def gridSearchCV(pipeline, parameters, features, labels) :
     print "---------------- Tuning Algorithm using GridSearchCV -----------------\n"
     features_train, features_test, labels_train, labels_test = train_test_split(features, labels, test_size=0.3, random_state=42)
     print parameters, type(parameters)
@@ -283,7 +284,7 @@ def gridSearchCV(pipeline, parameters, features, labels):
     for param_name in sorted(parameters.keys()):
         print '--> \t%s: %r' % (param_name, best_parameters[param_name])
     tuned_clf = grid_search.best_estimator_
-    return pred, labels_test
+    return pred, labels_test, tuned_clf
 
 #######################################################################################
 
