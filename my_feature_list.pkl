@@ -1,0 +1,16 @@
+(lp0
+S'poi'
+p1
+aS'poi_outgoing'
+p2
+aS'total_wealth'
+p3
+aS'shared_receipt_with_poi'
+p4
+aS'exercised_stock_options'
+p5
+aS'poi_interaction'
+p6
+aS'deferred_income'
+p7
+a.
