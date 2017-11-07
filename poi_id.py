@@ -29,12 +29,12 @@ def main():
     dataExplore(data_dict)
 
     # Step 1: Selecting Features
-    temp_features_list = ['poi', 'salary', 'bonus', 'total_payments', 'total_stock_value',
+    features_list = ['poi', 'salary', 'bonus', 'total_payments', 'total_stock_value',
                      'exercised_stock_options', 'restricted_stock', 'deferred_income',
                      'long_term_incentive', 'shared_receipt_with_poi']
 
     # Step 2: Removing Outliers
-    removeOutlier(data_dict, temp_features_list)
+    removeOutlier(data_dict, features_list)
 
     # Step 3: Engineering New Features
     data_dict = createFeature(data_dict)
@@ -277,7 +277,8 @@ def get_best_feats(data_dict, features_list, k):
 
     sorted_features = sorted(unsorted_list, key=lambda x: x[1], reverse=True)
 
-    #print "Feature Scores:\n", sorted_list
+    print "Feature Scores:\n"
+    pprint.pprint(sorted_features)
 
     k_best_features = dict(sorted_features[:k])
     return ['poi'] + k_best_features.keys()
