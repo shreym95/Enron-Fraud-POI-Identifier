@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-########################################################################################
+########################################################################################################################
 import sys
 from time import time
 import pickle
 import pprint
-from tester import dump_classifier_and_data, main as my_main
+from tester import dump_classifier_and_data, main as tester_main
 from sklearn.feature_selection import SelectKBest
 from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
@@ -22,7 +22,8 @@ from feature_format import featureFormat, targetFeatureSplit
 
 t0 = time()
 
-################################################################################################################
+########################################################################################################################
+
 def main():
     with open("final_project_dataset.pkl", "r") as data_file:
         data_dict = pickle.load(data_file)
@@ -66,7 +67,7 @@ def main():
 
     # Create pipeline
     scale = MinMaxScaler()
-    pca = PCA()                                             # Not used
+    pca = PCA()                                             # Not used - hampers performance in DT and ADB
     estimators = [('scale', scale), ('clf', clf_adb)]
     pipe = Pipeline(estimators)
 
@@ -90,10 +91,10 @@ def main():
     #print "--------------- Evaluating Performance! -----------------"
     print "\n===> DUMPING DATASET, FEATURES AND CLASSIFIER TO PKL FILE"
     dump_classifier_and_data(clf, my_dataset, features_list)
-    #my_main()
+    # tester_main()                                    # Uncomment for local testing using tester.py file
 
-####################################################################################################
-
+########################################################################################################################
+# Exploring the data for initial stats
 def dataExplore(data_dict) :
     print '\n====> Exploratory Data Analysis!'
 
@@ -113,8 +114,8 @@ def dataExplore(data_dict) :
 
     print "\n_____________________________________________"
 
-
-def removeOutlier(data_dict, feature_list) :
+# Removing unwanted data points
+def removeOutlier(data_dict, feature_list) :          # Future: Shift from dict to pandas dataframe from easier handling
     # Initial Visualisations to spot outliers
     print "\n====> Visualisations and Outlier Removal \n"
     data_to_plot = featureFormat(data_dict, feature_list, sort_keys = True)
@@ -166,10 +167,11 @@ def visualise(data, feat1, feat2, x_label, y_label ) :
     mp.show()
 
 
-### Task 3: Create new feature(s)
+# Creating new feature(s)
 
 def createFeature(data_dict) :
     print "\n====> Engineering New Features!\n"
+    # Distinguishing features into finance and email related
     finance_features = ['total_stock_value', 'total_payments', 'salary', 'bonus', 'deferred_income',
                         'exercised_stock_options', 'long_term_incentive', 'restricted_stock']
     email_features = ['to_messages', 'from_messages', 'from_poi_to_this_person', 'from_this_person_to_poi',
@@ -221,7 +223,7 @@ def handleNaN(val_to_check, new_val) :
     else :
         return val_to_check
 
-### Extract features and labels from dataset for local testing
+# Extract features and labels from dataset for local testing
 def featureExtract(my_dataset, features_list) :
     print "\n===> Feature And Labels Extraction!"
     data = featureFormat(my_dataset, features_list, sort_keys = True)
@@ -234,10 +236,11 @@ def tune_NB() :
     print "------------- Using Naive Bayes -----------------\n"
 
     nb_clf = GaussianNB()
-    param_grid = {}
+    param_grid = {}             # No parameters for tuning
 
     return nb_clf, param_grid
 
+# Decision Tree Classifier
 def tune_DT():
     print "------------- Tuning Decision Tree -----------------\n"
     clf = DecisionTreeClassifier()
@@ -249,6 +252,7 @@ def tune_DT():
 
     return clf, param_grid
 
+# AdaBoost Classifier
 def tune_ADB():
     print "\n===> Tuning AdaBoost Ensemble"
     clf = AdaBoostClassifier()
@@ -261,6 +265,7 @@ def tune_ADB():
 
     return clf, param_grid
 
+# Getting K best features using SelectKBest
 def get_best_feats(data_dict, features_list, k):
 
     # Scaling before selecting features
@@ -281,9 +286,9 @@ def get_best_feats(data_dict, features_list, k):
     pprint.pprint(sorted_features)
 
     k_best_features = dict(sorted_features[:k])
-    return ['poi'] + k_best_features.keys()
+    return ['poi'] + k_best_features.keys()                   # 'poi' needs to be the first key for proper usage later
 
-
+########################################################################################################################
 
 if __name__ == '__main__':
     main()
